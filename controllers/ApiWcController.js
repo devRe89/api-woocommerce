@@ -4,10 +4,7 @@ const {
     readAllFiles,
     convertCsvToJson,
 } = require('../helpers/excel-actions');
-const {
-    indexByItem,
-    onlyUnique
-} = require('../helpers/array-actions');
+const { indexByItem } = require('../helpers/array-actions');
 
 exports.getAllAtributes = async (req, res) => {
 
@@ -29,7 +26,7 @@ exports.getAllAtributes = async (req, res) => {
 exports.getAllTerms = async (req, res) => {
 
     try {
-        const response = await WooCommerce.get("products/attributes/2/terms");
+        const response = await WooCommerce.get("products/attributes/23/terms");
         res.json({
             res: response.data,
             status: response.status
@@ -72,31 +69,57 @@ exports.createProductAtribute = async (req, res) => {
             });
         }
         const { data } = wcAttributes;
-        const dataIndex = indexByItem(data, 'name', 'id');
-        const intersectionData = dataJson.filter(attr => !dataIndex[attr.atributo])
+        const dataIndex = data.reduce((acc, it) => (acc[it.name] = it.id, acc), {});
+        const intersectionDataAttributes = dataJson.filter(attr => !dataIndex[attr.atributo])
               .map(item => item.atributo)
               .filter((value, index, self) => self.indexOf(value) === index);
 
-        if ( !intersectionData.length ){
-            return res.status(404).json({
-                msg: 'No hay nuevos atributos para crear'
-            });
-        } 
-        await Promise.all (intersectionData.map( async attr => {
-            const attribute = {
-                name: attr,
-                slug: `pa_${attr.toLowerCase()}`,
-                type: 'select',
-                order_by: 'menu_order',
-                has_archives: true
+        //Create new Attributes
+        if ( intersectionDataAttributes.length > 0 ){
+            await Promise.all (intersectionDataAttributes.map( async attr => {
+                const attribute = {
+                    name: attr,
+                    slug: `pa_${attr.toLowerCase()}`,
+                    type: 'select',
+                    order_by: 'menu_order',
+                    has_archives: true
+                }
+                const createAttribute = await WooCommerce.post("products/attributes", attribute);
+                if ( createAttribute.status === 201 ) {
+                    const { id } = createAttribute.data;
+                    dataIndex[attr] = id;
+                }
+                return;
+            })); 
+        }
+        const indexDataCsvTerms = indexByItem( dataJson, 'atributo', 'valores' );
+        await Promise.all (Object.keys(dataIndex).map( async attr => {
+            if ( indexDataCsvTerms[attr] ) {
+                const termsCsv = indexDataCsvTerms[attr];
+                const responseTermsAttr = await WooCommerce.get(`products/attributes/${dataIndex[attr]}/terms`);
+                if ( responseTermsAttr.status === 200 ){
+                    if ( !responseTermsAttr.data.length ) {
+                        termsCsv.map( async term => {
+                            const data = {
+                                name: term
+                            }
+                            await WooCommerce.post(`products/attributes/${dataIndex[attr]}/terms`, data);
+                        });
+                    } else {
+                        const termsNames = responseTermsAttr.data.map(wc_term => (wc_term.name));
+                        const intersectionDataTerms = termsCsv.filter(csv_term => !termsNames.includes(csv_term));
+                        intersectionDataTerms.map( async term => {
+                            const data = {
+                                name: term
+                            }
+                            await WooCommerce.post(`products/attributes/${dataIndex[attr]}/terms`, data);
+                        });
+                    }
+                }
+                return;
             }
-            const createAttribute = await WooCommerce.post("products/attributes", attribute);
-            if ( createAttribute.status === 201 ) {
-                const { id } = createAttribute.data;
-                dataIndex[attr] = [id];
-            }
-            return;
-        })); 
+        }));
+
         return res.json({
             dataIndex
         });

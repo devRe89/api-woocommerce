@@ -9,11 +9,14 @@ const indexByItem = (array, key, index) => array.reduce((acc, el) =>{
     return acc;
 }, {});
 
+const indexByItemB = (array) => array.reduce((acc, it) => (acc[it.name] = it.id, acc), {});
+
 const onlyUnique = (value, index, self) => (
     self.indexOf(value) === index
 );
 
 module.exports = {
     indexByItem,
-    onlyUnique
+    onlyUnique,
+    indexByItemB
 }
