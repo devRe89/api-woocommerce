@@ -26,6 +26,23 @@ exports.getAllAtributes = async (req, res) => {
 
 }
 
+exports.getAllTerms = async (req, res) => {
+
+    try {
+        const response = await WooCommerce.get("products/attributes/2/terms");
+        res.json({
+            res: response.data,
+            status: response.status
+        })
+        
+    } catch (error) {
+        res.json({
+            res: error
+        })
+    }
+
+}
+
 exports.createProductAtribute = async (req, res) => {
     
     try {
@@ -57,8 +74,8 @@ exports.createProductAtribute = async (req, res) => {
         const { data } = wcAttributes;
         const dataIndex = indexByItem(data, 'name', 'id');
         const intersectionData = dataJson.filter(attr => !dataIndex[attr.atributo])
-            .map(item => item.atributo)
-            .filter((value, index, self) => self.indexOf(value) === index);
+              .map(item => item.atributo)
+              .filter((value, index, self) => self.indexOf(value) === index);
 
         if ( !intersectionData.length ){
             return res.status(404).json({
@@ -80,7 +97,6 @@ exports.createProductAtribute = async (req, res) => {
             }
             return;
         })); 
-
         return res.json({
             dataIndex
         });

@@ -6,6 +6,10 @@ router.get('/',
     ApiWcController.getAllAtributes
 );
 
+router.get('/terms',
+    ApiWcController.getAllTerms
+);
+
 router.post('/',
     ApiWcController.createProductAtribute
 )
