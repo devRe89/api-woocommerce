@@ -93,6 +93,8 @@ exports.createProductAtribute = async (req, res) => {
             })); 
         }
         const indexDataCsvTerms = indexByItem( dataJson, 'atributo', 'valores' );
+        
+        //Create Terms by Id Attribute
         await Promise.all (Object.keys(dataIndex).map( async attr => {
             if ( indexDataCsvTerms[attr] ) {
                 const termsCsv = indexDataCsvTerms[attr];
