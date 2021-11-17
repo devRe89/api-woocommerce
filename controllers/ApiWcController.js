@@ -56,45 +56,42 @@ exports.createProductAtribute = async (req, res) => {
         }
         const { data } = wcAttributes;
         const dataIndex = indexByItem(data, 'name', 'id');
-        const intersectionData = dataJson.filter(attr => !dataIndex[attr.atributo]);
+        const intersectionData = dataJson.filter(attr => !dataIndex[attr.atributo])
+            .map(item => item.atributo)
+            .filter((value, index, self) => self.indexOf(value) === index);
 
-        // const atribute = {
-        //     name: "Color",
-        //     slug: "pa_color",
-        //     type: "select",
-        //     order_by: "menu_order",
-        //     has_archives: true
-        // };
-        // const term = {
-        //     name: 'Azul'
-        // }
-
-        // const createAtribute = await WooCommerce.post("products/attributes", atribute);
-        // if ( createAtribute.status === 201 ) {
-        //     const { id } = createAtribute.data;
-        //     const createTerm = await WooCommerce.post(`products/attributes/${id}/terms`, term);
-        //     if ( createTerm.status === 201 ) {
-        //         return res.status(200).json({
-        //             status: createAtribute.status,
-        //             atribute: createAtribute.data,
-        //             terms: createTerm.data 
-        //         });
-        //     }
-        // }
-
-        // return res.status(404).json({
-        //     msg: 'hubo un error'
-        // });
+        if ( !intersectionData.length ){
+            return res.status(404).json({
+                msg: 'No hay nuevos atributos para crear'
+            });
+        } 
+        await Promise.all (intersectionData.map( async attr => {
+            const attribute = {
+                name: attr,
+                slug: `pa_${attr.toLowerCase()}`,
+                type: 'select',
+                order_by: 'menu_order',
+                has_archives: true
+            }
+            const createAttribute = await WooCommerce.post("products/attributes", attribute);
+            if ( createAttribute.status === 201 ) {
+                const { id } = createAttribute.data;
+                dataIndex[attr] = [id];
+            }
+            return;
+        })); 
 
         return res.json({
-            intersectionData
-        })
-        
+            dataIndex
+        });
+         
     } catch (error) {
+
         console.log(error)
         return res.status(500).json({
             e: 'error'
         });
+
     }
 
 }
