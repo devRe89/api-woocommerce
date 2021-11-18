@@ -4,7 +4,10 @@ const {
     readAllFiles,
     convertCsvToJson,
 } = require('../helpers/excel-actions');
-const { indexByItem } = require('../helpers/array-actions');
+const { 
+    indexByItem,
+    indexBySku
+} = require('../helpers/array-actions');
 
 exports.getAllAtributes = async (req, res) => {
 
@@ -45,13 +48,13 @@ exports.createProductVariant = async (req, res) => {
         const data = {
             attributes: [
                 {
-                    id: 31,
-                    name: "Color",
+                    id: 30,
+                    name: "Ancho",
                     position: 0,
                     visible: true,
                     variation: false,
                     options: [
-                        "ABEDUL"
+                        "30Cm",
                     ]
                 }
             ],
@@ -89,7 +92,7 @@ exports.createProductAtribute = async (req, res) => {
     
     try {
 
-        const currentDir = path.join(__dirname, '../csv-docs/');
+        const currentDir = path.join(__dirname, '../csv-doc-attributes/');
         if ( !currentDir ) {
             return res.status(404).json({
                 msg: `No se encontro la carpeta ${currentDir}`,
@@ -179,4 +182,53 @@ exports.createProductAtribute = async (req, res) => {
 
     }
 
+}
+
+exports.addAttributeInProduct = async (req, res) => {
+    try {
+        const currentDir = path.join(__dirname, '../csv-products-attributes/');
+        if ( !currentDir ) {
+            return res.status(404).json({
+                msg: `No se encontro la carpeta ${currentDir}`,
+            });
+        }
+        const arrayFiles = await readAllFiles(currentDir);
+        if ( !arrayFiles ) {
+            return res.status(404).json({
+                msg: `No se encontro algun archivo dentro del directorio marcado o el formato no es el requerido`
+            });
+        }
+        const dataJson = await convertCsvToJson(currentDir, arrayFiles);
+        if ( !dataJson ) {
+            return res.status(400).json({
+                msg: `No se genero ninguna informaciòn a partir del recorrido de los csv`
+            });
+        }
+        // All products attributes of csv
+        const indexCsv = indexBySku(dataJson);
+        // All Products WC
+        const allProductsW = [];
+        let page = 1;
+        while ( page !== false ) {
+            const allProductsResponse = await WooCommerce.get(`products?per_page=10&page=${page}`);
+            if ( allProductsResponse.status === 200 && allProductsResponse.data.length ){
+                allProductsW.push(allProductsResponse.data);
+                page ++;
+            } else {
+                page = false;
+            }
+        }
+        const filterProductsValues = allProductsW.reduce((acc, el) => acc.concat(el), []);
+
+        return res.json({
+            filterProductsValues
+        });
+        
+    } catch (error) {
+
+        console.log(error)
+        return res.status(500).json({
+            e: 'error'
+        });
+    }
 }

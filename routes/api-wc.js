@@ -18,6 +18,10 @@ router.post('/create-one-variant',
     ApiWcController.createProductVariant
 );
 
+router.post('/add-all-attributes',
+    ApiWcController.addAttributeInProduct
+);
+
 router.post('/create-attributes',
     ApiWcController.createProductAtribute
 )

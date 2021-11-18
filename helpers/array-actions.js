@@ -9,14 +9,23 @@ const indexByItem = (array, key, index) => array.reduce((acc, el) =>{
     return acc;
 }, {});
 
-const indexByItemB = (array) => array.reduce((acc, it) => (acc[it.name] = it.id, acc), {});
-
-const onlyUnique = (value, index, self) => (
-    self.indexOf(value) === index
-);
+const indexBySku = (array) => array.reduce((acc, el) =>{
+    if(!acc[el['sku']]){
+        acc[el['sku']] = [];
+        acc[el['sku']].push({
+          atributo: el['atributo'],
+          valores: el['valores']
+        });
+    }else{
+        acc[el['sku']].push({
+          atributo: el['atributo'],
+          valores: el['valores']
+        });
+    }
+    return acc;
+}, {});
 
 module.exports = {
     indexByItem,
-    onlyUnique,
-    indexByItemB
+    indexBySku
 }
