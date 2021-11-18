@@ -2,7 +2,7 @@ const {Router} = require('express');
 const router = Router();
 const ApiWcController = require('../controllers/ApiWcController');
 
-router.get('/',
+router.get('/attributes',
     ApiWcController.getAllAtributes
 );
 
@@ -10,7 +10,15 @@ router.get('/terms',
     ApiWcController.getAllTerms
 );
 
-router.post('/',
+router.get('/product',
+    ApiWcController.getProductBySku
+);
+
+router.post('/create-one-variant',
+    ApiWcController.createProductVariant
+);
+
+router.post('/create-attributes',
     ApiWcController.createProductAtribute
 )
 

@@ -23,6 +23,51 @@ exports.getAllAtributes = async (req, res) => {
 
 }
 
+exports.getProductBySku = async (req, res) => {
+
+    try {
+        const response = await WooCommerce.get("products/?sku=3010120008817");
+        res.json({
+            res: response.data,
+            status: response.status
+        })
+    } catch (error) {
+        res.json({
+            res: error
+        })
+    }
+
+}
+
+exports.createProductVariant = async (req, res) => {
+
+    try {
+        const data = {
+            attributes: [
+                {
+                    id: 31,
+                    name: "Color",
+                    position: 0,
+                    visible: true,
+                    variation: false,
+                    options: [
+                        "ABEDUL"
+                    ]
+                }
+            ],
+        };
+        const response = await WooCommerce.put("products/101114", data);
+        res.json({
+            res: response.data,
+            status: response.status
+        })
+    } catch (error) {
+        res.json({
+            res: error
+        });
+    }
+}
+
 exports.getAllTerms = async (req, res) => {
 
     try {
@@ -95,26 +140,25 @@ exports.createProductAtribute = async (req, res) => {
         const indexDataCsvTerms = indexByItem( dataJson, 'atributo', 'valores' );
         
         //Create Terms by Id Attribute
+        const termsNoCreate = [];
         await Promise.all (Object.keys(dataIndex).map( async attr => {
             if ( indexDataCsvTerms[attr] ) {
                 const termsCsv = indexDataCsvTerms[attr];
                 const responseTermsAttr = await WooCommerce.get(`products/attributes/${dataIndex[attr]}/terms`);
                 if ( responseTermsAttr.status === 200 ){
-                    if ( !responseTermsAttr.data.length ) {
-                        termsCsv.map( async term => {
-                            const data = {
-                                name: term
-                            }
-                            await WooCommerce.post(`products/attributes/${dataIndex[attr]}/terms`, data);
-                        });
-                    } else {
-                        const termsNames = responseTermsAttr.data.map(wc_term => (wc_term.name));
-                        const intersectionDataTerms = termsCsv.filter(csv_term => !termsNames.includes(csv_term));
+                    const termsNames = responseTermsAttr.data.map(wc_term => (wc_term.name));
+                    const intersectionDataTerms = termsCsv.filter(csv_term => !termsNames.includes(csv_term));
+                    if ( intersectionDataTerms ) {
                         intersectionDataTerms.map( async term => {
                             const data = {
                                 name: term
                             }
-                            await WooCommerce.post(`products/attributes/${dataIndex[attr]}/terms`, data);
+                            const createTermByAttr = await WooCommerce.post(`products/attributes/${dataIndex[attr]}/terms`, data);
+                            if ( createTermByAttr.status !== 201 ) {
+                                termsNoCreate.push({
+                                    noCreate : term
+                                });
+                            }
                         });
                     }
                 }
@@ -123,7 +167,7 @@ exports.createProductAtribute = async (req, res) => {
         }));
 
         return res.json({
-            dataIndex
+            termsNoCreate
         });
          
     } catch (error) {
