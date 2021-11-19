@@ -4,10 +4,13 @@ const {
     readAllFiles,
     convertCsvToJson,
 } = require('../helpers/excel-actions');
-const { 
+const {
+    getAllProducts,
+    filterValues,
     indexByItem,
-    indexBySku
-} = require('../helpers/array-actions');
+    indexBySku,
+    getAllAttributes
+} = require('../helpers/controller-actions');
 
 exports.getAllAtributes = async (req, res) => {
 
@@ -185,7 +188,9 @@ exports.createProductAtribute = async (req, res) => {
 }
 
 exports.addAttributeInProduct = async (req, res) => {
+
     try {
+
         const currentDir = path.join(__dirname, '../csv-products-attributes/');
         if ( !currentDir ) {
             return res.status(404).json({
@@ -205,32 +210,47 @@ exports.addAttributeInProduct = async (req, res) => {
             });
         }
         // All products attributes of csv
-        const indexCsv = indexBySku(dataJson);
-        // All Products WC
-        const allProductsW = [];
-        for (let index = 1; index <= 21; index++) {
-            const allProductsResponse = WooCommerce.get(`products?per_page=10&page=${index}`);
-            allProductsW.push(allProductsResponse);
-        }
-        const resPromises = await Promise.all(allProductsW);
-        const resData = resPromises.map(data => {
-            return data.data
-        }) ;
+        const indexSkuCsv = indexBySku(dataJson);
+        const allSkusCsv = filterValues(dataJson, 'sku');
+        // All products Wc.
+        const productsWc = await getAllProducts(allSkusCsv);
+        // All Attributes id WC
+        const allAttrsWc = await getAllAttributes();
+        const indexAllAttrsWc = allAttrsWc.reduce((acc, it) => (acc[it.name] = it.id, acc), {});
+        const structureAttrProduct = [];
+        // for (const product of productsWc) {
 
-        // while ( page !== false ) {
-        //     const allProductsResponse = await WooCommerce.get(`products?per_page=10&page=${page}`);
-        //     if ( allProductsResponse.status === 200 && allProductsResponse.data.length ){
-        //         allProductsW.push(allProductsResponse.data);
-        //         page ++;
-        //     } else {
-        //         page = false;
+        //     if ( indexSkuCsv[product.sku] ) {
+        //         console.log(indexSkuCsv[product.sku]);
+
         //     }
+
         // }
-        // const filterProductsValues = allProductsW.reduce((acc, el) => acc.concat(el), []);
+
+
+
+        // "attributes": [
+        //     {
+        //         "id": 30,
+        //         "name": "Ancho",
+        //         "position": 0,
+        //         "visible": true,
+        //         "variation": false,
+        //         "options": [
+        //             "30Cm"
+        //         ]
+        //     }
+        // ],
 
         return res.json({
-            r: resPromises.length,
-            resData
+            // productsWc,
+            dataJson,
+            // indexAllAttrsWc,
+            // indexSkuCsv,
+            // structureAttrProduct
+            // allAttrCsv
+            // indexSku
+            // allSkus
         });
         
     } catch (error) {
@@ -239,5 +259,7 @@ exports.addAttributeInProduct = async (req, res) => {
         return res.status(500).json({
             e: 'error'
         });
+
     }
+
 }
