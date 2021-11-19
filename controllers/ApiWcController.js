@@ -208,20 +208,29 @@ exports.addAttributeInProduct = async (req, res) => {
         const indexCsv = indexBySku(dataJson);
         // All Products WC
         const allProductsW = [];
-        let page = 1;
-        while ( page !== false ) {
-            const allProductsResponse = await WooCommerce.get(`products?per_page=10&page=${page}`);
-            if ( allProductsResponse.status === 200 && allProductsResponse.data.length ){
-                allProductsW.push(allProductsResponse.data);
-                page ++;
-            } else {
-                page = false;
-            }
+        for (let index = 1; index <= 21; index++) {
+            const allProductsResponse = WooCommerce.get(`products?per_page=10&page=${index}`);
+            allProductsW.push(allProductsResponse);
         }
-        const filterProductsValues = allProductsW.reduce((acc, el) => acc.concat(el), []);
+        const resPromises = await Promise.all(allProductsW);
+        const resData = resPromises.map(data => {
+            return data.data
+        }) ;
+
+        // while ( page !== false ) {
+        //     const allProductsResponse = await WooCommerce.get(`products?per_page=10&page=${page}`);
+        //     if ( allProductsResponse.status === 200 && allProductsResponse.data.length ){
+        //         allProductsW.push(allProductsResponse.data);
+        //         page ++;
+        //     } else {
+        //         page = false;
+        //     }
+        // }
+        // const filterProductsValues = allProductsW.reduce((acc, el) => acc.concat(el), []);
 
         return res.json({
-            filterProductsValues
+            r: resPromises.length,
+            resData
         });
         
     } catch (error) {
