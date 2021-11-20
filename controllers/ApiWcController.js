@@ -8,8 +8,9 @@ const {
     getAllProducts,
     filterValues,
     indexByItem,
-    indexBySku,
-    getAllAttributes
+    prepareAllInsert,
+    getAllAttributes,
+    groupByProperties
 } = require('../helpers/controller-actions');
 
 exports.getAllAtributes = async (req, res) => {
@@ -209,48 +210,32 @@ exports.addAttributeInProduct = async (req, res) => {
                 msg: `No se genero ninguna informaciòn a partir del recorrido de los csv`
             });
         }
-        // All products attributes of csv
-        const indexSkuCsv = indexBySku(dataJson);
         const allSkusCsv = filterValues(dataJson, 'sku');
-        // All products Wc.
         const productsWc = await getAllProducts(allSkusCsv);
-        // All Attributes id WC
+        const indexSkuCsv = groupByProperties([...dataJson], ['sku', 'atributo', 'valores']);
         const allAttrsWc = await getAllAttributes();
         const indexAllAttrsWc = allAttrsWc.reduce((acc, it) => (acc[it.name] = it.id, acc), {});
-        const structureAttrProduct = [];
-        // for (const product of productsWc) {
+        const allPromisesInsert = [];
+        productsWc.map(product => Object.keys(indexAllAttrsWc).some((attr, pos) => Object.keys(indexSkuCsv).some((sku) => {
+            if ( sku === product.sku && indexSkuCsv[product.sku][attr] ){
+                const data = {
+                    attributes : [{
 
-        //     if ( indexSkuCsv[product.sku] ) {
-        //         console.log(indexSkuCsv[product.sku]);
-
-        //     }
-
-        // }
-
-
-
-        // "attributes": [
-        //     {
-        //         "id": 30,
-        //         "name": "Ancho",
-        //         "position": 0,
-        //         "visible": true,
-        //         "variation": false,
-        //         "options": [
-        //             "30Cm"
-        //         ]
-        //     }
-        // ],
+                        id: indexAllAttrsWc[attr],
+                        position: pos,
+                        name: attr,
+                        options: indexSkuCsv[product.sku][attr],
+                        visible: true,
+                        variation: false,
+                    }]
+                };
+                allPromisesInsert.push(prepareAllInsert(product.id, data));
+            }
+        })));
+        await Promise.all(allPromisesInsert);
 
         return res.json({
-            // productsWc,
-            dataJson,
-            // indexAllAttrsWc,
-            // indexSkuCsv,
-            // structureAttrProduct
-            // allAttrCsv
-            // indexSku
-            // allSkus
+            response: 'Done'
         });
         
     } catch (error) {

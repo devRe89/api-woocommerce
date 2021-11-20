@@ -24,6 +24,11 @@ const getAllProducts = async skus => {
     
 }
 
+const prepareAllInsert = async (id, data) => {
+    const response = WooCommerce.put(`products/${id}`, data);
+    return response;
+}
+
 
 const getAllAttributes = async () => {
 
@@ -75,10 +80,41 @@ const indexBySku = (array) => array.reduce((acc, el) =>{
 
 }, {});
 
+const groupBy = (list, prop) => {
+    return list.reduce((groupped, item) => {
+      let key = item[prop];
+      delete item[prop];
+      if (groupped.hasOwnProperty(key)) {
+        groupped[key].push(item);
+      } else {
+        groupped[key] = [item];
+      }
+      return groupped
+    }, {});
+  }
+  
+  const groupSubKeys = (obj, properties, propIndex) => {
+    let grouppedObj = groupBy(obj, properties[propIndex]);
+    Object.keys(grouppedObj).forEach((key) => {
+      if (propIndex < properties.length - 2) {
+        grouppedObj[key] = groupSubKeys(grouppedObj[key], properties, propIndex + 1);
+      } else {
+        grouppedObj[key] = grouppedObj[key].map(item => item[properties[propIndex + 1]])
+      }
+    });
+    return grouppedObj;
+  }
+  
+  const groupByProperties = (list, properties) => {
+    return groupSubKeys(list, properties, 0);
+  }
+
 module.exports = {
     getAllProducts,
+    prepareAllInsert,
     filterValues,
     indexByItem,
     indexBySku,
-    getAllAttributes
+    getAllAttributes,
+    groupByProperties
 }
