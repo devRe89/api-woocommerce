@@ -11,7 +11,8 @@ const {
     prepareAllInsert,
     getAllAttributes,
     groupByProperties,
-    jsonAttr
+    jsonAttr,
+    getAllProductsLotes
 } = require('../helpers/controller-actions');
 
 exports.getAllAtributes = async (req, res) => {
@@ -34,10 +35,12 @@ exports.getAllAtributes = async (req, res) => {
 exports.getProductBySku = async (req, res) => {
 
     try {
-        const response = await WooCommerce.get("products/?sku=3010120008817");
+        const currentDir = path.join(__dirname, '../csv-skus/');
+        const dataJson = await getJsonData(currentDir);
+        const skus = dataJson.map(sku => sku.sku);
+        const products = await getAllProductsLotes(skus);
         res.json({
-            res: response.data,
-            status: response.status
+            products
         })
     } catch (error) {
         res.json({

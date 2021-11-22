@@ -24,6 +24,20 @@ const getAllProducts = async skus => {
     
 }
 
+const getAllProductsLotes = async skus => {
+
+  if ( skus.length ) {
+      const allPromises = skus.map(sku => {
+          // const response =  WooCommerce.get(`products/?sku=${sku}`);
+          // // return response;
+          console.log(sku)
+      });
+      return [];
+  }
+  return [];
+  
+}
+
 const insertAllAttrs = async (data, dataIndex) => {
 
     const allPromises = data.map(attr => {
@@ -73,31 +87,31 @@ const jsonAttr = (obj, sku, indexAllAttrsWc, indexSkuCsv) => Object.keys(obj).ma
 
 const getAllAttributes = async () => {
 
-    const response = await WooCommerce.get("products/attributes");
-    if ( response.status === 200 ) {
-        return response.data;
-    }
-    return [];
+  const response = await WooCommerce.get("products/attributes");
+  if ( response.status === 200 ) {
+      return response.data;
+  }
+  return [];
 
 }
 
 const filterValues = (array, key) => {
 
-    const result = array.map(item => item[key]).filter((value, index, self) => self.indexOf(value) === index);
-    return result;
+  const result = array.map(item => item[key]).filter((value, index, self) => self.indexOf(value) === index);
+  return result;
 
 }
 
 
 const indexByItem = (array, key, index) => array.reduce((acc, el) =>{
 
-    if(!acc[el[key]]){
-        acc[el[key]] = [];
-        acc[el[key]].push(el[index]);
-    }else{
-        acc[el[key]].push(el[index]);
-    }
-    return acc;
+  if(!acc[el[key]]){
+      acc[el[key]] = [];
+      acc[el[key]].push(el[index]);
+  }else{
+      acc[el[key]].push(el[index]);
+  }
+  return acc;
 
 }, {});
 
@@ -105,23 +119,24 @@ const indexByItem = (array, key, index) => array.reduce((acc, el) =>{
 
 const indexBySku = (array) => array.reduce((acc, el) =>{
     
-    if(!acc[el['sku']]){
-        acc[el['sku']] = [];
-        acc[el['sku']].push({
-          atributo: el['atributo'],
-          valores: el['valores']
-        });
-    }else{
-        acc[el['sku']].push({
-          atributo: el['atributo'],
-          valores: el['valores']
-        });
-    }
-    return acc;
+  if(!acc[el['sku']]){
+      acc[el['sku']] = [];
+      acc[el['sku']].push({
+        atributo: el['atributo'],
+        valores: el['valores']
+      });
+  }else{
+      acc[el['sku']].push({
+        atributo: el['atributo'],
+        valores: el['valores']
+      });
+  }
+  return acc;
 
 }, {});
 
 const groupBy = (list, prop) => {
+
   return list.reduce((groupped, item) => {
     let key = item[prop];
     delete item[prop];
@@ -132,9 +147,11 @@ const groupBy = (list, prop) => {
     }
     return groupped
   }, {});
+
 }
   
 const groupSubKeys = (obj, properties, propIndex) => {
+
   let grouppedObj = groupBy(obj, properties[propIndex]);
   Object.keys(grouppedObj).forEach((key) => {
     if (propIndex < properties.length - 2) {
@@ -144,14 +161,35 @@ const groupSubKeys = (obj, properties, propIndex) => {
     }
   });
   return grouppedObj;
+
 }
 
 const groupByProperties = (list, properties) => {
+
   return groupSubKeys(list, properties, 0);
+
 }
 
+const SplitArrayDataInSubArrays = (arr, len) => {
 
+  const parts = [];
+  let i = 0, 
+  top = arr.length;
+  while (i < top) {
+    parts.push(arr.slice(i, i += len));
+  }
+  return parts;
 
+}
+const wait = ms => {
+
+  let start = new Date().getTime();
+  let end = start;
+  while(end < start + ms) {
+    end = new Date().getTime();
+ }
+
+}
 
 module.exports = {
     getAllProducts,
@@ -162,5 +200,6 @@ module.exports = {
     indexBySku,
     getAllAttributes,
     groupByProperties,
-    jsonAttr
+    jsonAttr,
+    getAllProductsLotes
 }
