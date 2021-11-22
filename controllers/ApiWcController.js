@@ -1,16 +1,17 @@
 const WooCommerce = require('../config-wc/wc');
 const path = require('path');
 const {
-    readAllFiles,
-    convertCsvToJson,
+    getJsonData
 } = require('../helpers/excel-actions');
 const {
     getAllProducts,
     filterValues,
+    insertAllAttrs,
     indexByItem,
     prepareAllInsert,
     getAllAttributes,
-    groupByProperties
+    groupByProperties,
+    jsonAttr
 } = require('../helpers/controller-actions');
 
 exports.getAllAtributes = async (req, res) => {
@@ -97,21 +98,10 @@ exports.createProductAtribute = async (req, res) => {
     try {
 
         const currentDir = path.join(__dirname, '../csv-doc-attributes/');
-        if ( !currentDir ) {
-            return res.status(404).json({
-                msg: `No se encontro la carpeta ${currentDir}`,
-            });
-        }
-        const arrayFiles = await readAllFiles(currentDir);
-        if ( !arrayFiles ) {
-            return res.status(404).json({
-                msg: `No se encontro algun archivo dentro del directorio marcado o el formato no es el requerido`
-            });
-        }
-        const dataJson = await convertCsvToJson(currentDir, arrayFiles);
-        if ( !dataJson ) {
+        const dataJson = await getJsonData(currentDir);
+        if ( !dataJson.length ) {
             return res.status(400).json({
-                msg: `No se genero ninguna informaciòn a partir del recorrido de los csv`
+                msg: 'No Hay datos disponibles en el excel'
             });
         }
         const wcAttributes = await WooCommerce.get("products/attributes");
@@ -126,32 +116,20 @@ exports.createProductAtribute = async (req, res) => {
               .map(item => item.atributo)
               .filter((value, index, self) => self.indexOf(value) === index);
 
-        //Create new Attributes
-        if ( intersectionDataAttributes.length > 0 ){
-            await Promise.all (intersectionDataAttributes.map( async attr => {
-                const attribute = {
-                    name: attr,
-                    slug: `pa_${attr.toLowerCase()}`,
-                    type: 'select',
-                    order_by: 'menu_order',
-                    has_archives: true
-                }
-                const createAttribute = await WooCommerce.post("products/attributes", attribute);
-                if ( createAttribute.status === 201 ) {
-                    const { id } = createAttribute.data;
-                    dataIndex[attr] = id;
-                }
-                return;
-            })); 
-        }
+        let attrIndex;
+        if ( intersectionDataAttributes.length > 0 ) {
+            // Create all Attributes.
+            attrIndex = await insertAllAttrs(intersectionDataAttributes, dataIndex);
+        } else {
+            attrIndex = dataIndex
+        }    
         const indexDataCsvTerms = indexByItem( dataJson, 'atributo', 'valores' );
-        
-        //Create Terms by Id Attribute
+        //Create Terms by Id Attribute.
         const termsNoCreate = [];
-        await Promise.all (Object.keys(dataIndex).map( async attr => {
+        await Promise.all (Object.keys(attrIndex).map( async attr => {
             if ( indexDataCsvTerms[attr] ) {
                 const termsCsv = indexDataCsvTerms[attr];
-                const responseTermsAttr = await WooCommerce.get(`products/attributes/${dataIndex[attr]}/terms`);
+                const responseTermsAttr = await WooCommerce.get(`products/attributes/${attrIndex[attr]}/terms`);
                 if ( responseTermsAttr.status === 200 ){
                     const termsNames = responseTermsAttr.data.map(wc_term => (wc_term.name));
                     const intersectionDataTerms = termsCsv.filter(csv_term => !termsNames.includes(csv_term));
@@ -160,7 +138,7 @@ exports.createProductAtribute = async (req, res) => {
                             const data = {
                                 name: term
                             }
-                            const createTermByAttr = await WooCommerce.post(`products/attributes/${dataIndex[attr]}/terms`, data);
+                            const createTermByAttr = await WooCommerce.post(`products/attributes/${attrIndex[attr]}/terms`, data);
                             if ( createTermByAttr.status !== 201 ) {
                                 termsNoCreate.push({
                                     noCreate : term
@@ -171,10 +149,10 @@ exports.createProductAtribute = async (req, res) => {
                 }
                 return;
             }
-        }));
+        }));        
 
         return res.json({
-            termsNoCreate
+            res: 'Done!'
         });
          
     } catch (error) {
@@ -193,47 +171,31 @@ exports.addAttributeInProduct = async (req, res) => {
     try {
 
         const currentDir = path.join(__dirname, '../csv-products-attributes/');
-        if ( !currentDir ) {
-            return res.status(404).json({
-                msg: `No se encontro la carpeta ${currentDir}`,
-            });
-        }
-        const arrayFiles = await readAllFiles(currentDir);
-        if ( !arrayFiles ) {
-            return res.status(404).json({
-                msg: `No se encontro algun archivo dentro del directorio marcado o el formato no es el requerido`
-            });
-        }
-        const dataJson = await convertCsvToJson(currentDir, arrayFiles);
-        if ( !dataJson ) {
+        const dataJson = await getJsonData(currentDir);
+        if ( !dataJson.length ) {
             return res.status(400).json({
-                msg: `No se genero ninguna informaciòn a partir del recorrido de los csv`
+                msg: 'No Hay datos disponibles en el excel'
             });
         }
+        const copyDataJson = [...dataJson];
         const allSkusCsv = filterValues(dataJson, 'sku');
         const productsWc = await getAllProducts(allSkusCsv);
-        const indexSkuCsv = groupByProperties([...dataJson], ['sku', 'atributo', 'valores']);
+        const indexSkuCsv = groupByProperties(copyDataJson, ['sku', 'atributo', 'valores']);
         const allAttrsWc = await getAllAttributes();
         const indexAllAttrsWc = allAttrsWc.reduce((acc, it) => (acc[it.name] = it.id, acc), {});
         const allPromisesInsert = [];
-        productsWc.map(product => Object.keys(indexAllAttrsWc).some((attr, pos) => Object.keys(indexSkuCsv).some((sku) => {
-            if ( sku === product.sku && indexSkuCsv[product.sku][attr] ){
-                const data = {
-                    attributes : [{
-
-                        id: indexAllAttrsWc[attr],
-                        position: pos,
-                        name: attr,
-                        options: indexSkuCsv[product.sku][attr],
-                        visible: true,
-                        variation: false,
-                    }]
-                };
-                allPromisesInsert.push(prepareAllInsert(product.id, data));
-            }
-        })));
-        await Promise.all(allPromisesInsert);
-
+        if ( productsWc.length ) {
+            productsWc.forEach(product => {
+                if ( indexSkuCsv[product.sku] ){
+                    const attrs = jsonAttr(indexSkuCsv[product.sku], product.sku, indexAllAttrsWc, indexSkuCsv);
+                    const data = {
+                        attributes: attrs
+                    };
+                    allPromisesInsert.push(prepareAllInsert(product.id, data));
+                }
+            });
+            await Promise.all(allPromisesInsert);
+        }
         return res.json({
             response: 'Done'
         });

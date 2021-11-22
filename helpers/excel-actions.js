@@ -38,7 +38,18 @@ const convertCsvToJson = (currentDir , [...arrayFiles]) => {
 
 }
 
+const getJsonData = async currentDir => {
+    
+    if ( currentDir ) {
+        const arrayFiles = await readAllFiles(currentDir); 
+        if ( arrayFiles.length ) {
+            return await convertCsvToJson(currentDir, arrayFiles);
+        }
+    }
+    return [];
+    
+}
+
 module.exports = {
-    readAllFiles,
-    convertCsvToJson
+    getJsonData
 }
