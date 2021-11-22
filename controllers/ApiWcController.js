@@ -35,13 +35,33 @@ exports.getAllAtributes = async (req, res) => {
 exports.getProductBySku = async (req, res) => {
 
     try {
+
         const currentDir = path.join(__dirname, '../csv-skus/');
         const dataJson = await getJsonData(currentDir);
         const skus = dataJson.map(sku => sku.sku);
-        const products = await getAllProductsLotes(skus);
-        res.json({
-            products
-        })
+        const responseProducts = await getAllProductsLotes(skus);
+        if ( responseProducts.length ) {
+            const rr = responseProducts.map( async lote => {
+                // console.log(lote)
+                return await Promise.all(lote);
+            });
+            // console.log(rr);
+            if ( rr.length ){
+                const data = rr.map(r => {
+                    if ( rr.status === 200 && rr.data.length ) {
+                        return rr.data;
+                    }
+                });
+                return res.json({
+                    data
+                });
+            }
+        }
+
+        return res.json({
+            r: 'done'
+        });
+
     } catch (error) {
         res.json({
             res: error

@@ -28,11 +28,14 @@ const getAllProductsLotes = async skus => {
 
   if ( skus.length ) {
       const allPromises = skus.map(sku => {
-          // const response =  WooCommerce.get(`products/?sku=${sku}`);
-          // // return response;
-          console.log(sku)
+          const response =  WooCommerce.get(`products/?sku=${sku}`);
+          return response;
       });
-      return [];
+      console.log(allPromises);
+      const tope = Math.ceil(allPromises.length / 100);
+      const pars = SplitArrayDataInSubArrays(allPromises, tope);
+      console.log(pars)
+      return pars;
   }
   return [];
   
