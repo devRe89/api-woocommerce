@@ -24,21 +24,45 @@ const getAllProducts = async skus => {
     
 }
 
-const getAllProductsLotes = async skus => {
+const getAllProductsPromises = async skus => {
 
   if ( skus.length ) {
       const allPromises = skus.map(sku => {
           const response =  WooCommerce.get(`products/?sku=${sku}`);
           return response;
       });
-      console.log(allPromises);
-      const tope = Math.ceil(allPromises.length / 100);
-      const pars = SplitArrayDataInSubArrays(allPromises, tope);
-      console.log(pars)
-      return pars;
+      return allPromises;
   }
   return [];
   
+}
+
+const getOnePromisesProduct = sku => {
+    const response = WooCommerce.get(`products/?sku=${sku}`);
+    return response;
+}
+
+const getDataPromisesForSlice = async array => {
+
+  if ( array.length ){
+    const result = [];
+    const arrayLength = array.length
+    for (let index = 0; index <= arrayLength; index += 10) {
+      const requestLote = array.slice(index, index + 10).map(item => {
+        return getOnePromisesProduct(item);
+      });
+      if ( index >= 10 ) {
+        setTimeout(() => {
+          console.log('current index: ', index);
+        }, 4000)
+      };
+      const resAllPromisesLote = await Promise.all(requestLote);
+      result.push(resAllPromisesLote);
+    }
+    return result.reduce((acc, el) => acc.concat(el), []);
+  }
+  return [];
+
 }
 
 const insertAllAttrs = async (data, dataIndex) => {
@@ -173,17 +197,6 @@ const groupByProperties = (list, properties) => {
 
 }
 
-const SplitArrayDataInSubArrays = (arr, len) => {
-
-  const parts = [];
-  let i = 0, 
-  top = arr.length;
-  while (i < top) {
-    parts.push(arr.slice(i, i += len));
-  }
-  return parts;
-
-}
 const wait = ms => {
 
   let start = new Date().getTime();
@@ -204,5 +217,6 @@ module.exports = {
     getAllAttributes,
     groupByProperties,
     jsonAttr,
-    getAllProductsLotes
+    getAllProductsPromises,
+    getDataPromisesForSlice
 }

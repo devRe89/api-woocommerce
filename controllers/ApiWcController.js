@@ -12,7 +12,8 @@ const {
     getAllAttributes,
     groupByProperties,
     jsonAttr,
-    getAllProductsLotes
+    getAllProductsPromises,
+    getDataPromisesForSlice
 } = require('../helpers/controller-actions');
 
 exports.getAllAtributes = async (req, res) => {
@@ -39,32 +40,31 @@ exports.getProductBySku = async (req, res) => {
         const currentDir = path.join(__dirname, '../csv-skus/');
         const dataJson = await getJsonData(currentDir);
         const skus = dataJson.map(sku => sku.sku);
-        const responseProducts = await getAllProductsLotes(skus);
-        if ( responseProducts.length ) {
-            const rr = responseProducts.map( async lote => {
-                // console.log(lote)
-                return await Promise.all(lote);
+        const resultData = await getDataPromisesForSlice(skus);
+        const noSkus = []
+        if ( resultData.length ) {
+            const allData = resultData.map((product, pos) => {
+                if ( product.status === 200 && product.data.length ) {
+                    return product.data;
+                } else {
+                    noSkus.push(pos);
+                }
             });
-            // console.log(rr);
-            if ( rr.length ){
-                const data = rr.map(r => {
-                    if ( rr.status === 200 && rr.data.length ) {
-                        return rr.data;
-                    }
-                });
-                return res.json({
-                    data
-                });
-            }
+            return res.json({
+                r: allData.length,
+                totalNoSkus: noSkus.length,
+                allData
+            });
         }
-
+        
         return res.json({
-            r: 'done'
+            r: 'no hay sku'
         });
 
     } catch (error) {
+        console.log(error)
         res.json({
-            res: error
+            res: 'error'
         })
     }
 
