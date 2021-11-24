@@ -147,32 +147,34 @@ exports.createProductAtribute = async (req, res) => {
         }    
         const indexDataCsvTerms = indexByItem( dataJson, 'atributo', 'valores' );
         // Create Terms by Id Attribute.
-        const termsNoCreate = [];
-        await Promise.all (Object.keys(attrIndex).map( async attr => {
-            if ( indexDataCsvTerms[attr] ) {
-                const termsCsv = indexDataCsvTerms[attr];
-                const responseTermsAttr = await WooCommerce.get(`products/attributes/${attrIndex[attr]}/terms`);
+        Object.keys(attrIndex).reduce(async (acc, el) => {
+            if ( indexDataCsvTerms[el] ) {
+                const termsCsv = indexDataCsvTerms[el];
+                const responseTermsAttr = await WooCommerce.get(`products/attributes/${attrIndex[el]}/terms`);
                 if ( responseTermsAttr.status === 200 ){
                     const termsNames = responseTermsAttr.data.map(wc_term => (wc_term.name));
                     const intersectionDataTerms = termsCsv.filter(csv_term => !termsNames.includes(csv_term));
                     if ( intersectionDataTerms.length ) {
-                        intersectionDataTerms.map( async term => {
-                            const data = {
-                                name: term
+                        for (let index = 0; index < intersectionDataTerms.length; index += 5) {
+                            const requestLote = intersectionDataTerms.slice(index, index + 5).map( async term => {
+                                console.log(term);
+                                const data = {
+                                    name: term
+                                }
+                                return WooCommerce.post(`products/attributes/${attrIndex[el]}/terms`, data);
+                            });
+                            if ( index >= 5 ) {
+                                wait(3000);
                             }
-                            const createTermByAttr = await WooCommerce.post(`products/attributes/${attrIndex[attr]}/terms`, data);
-                            if ( createTermByAttr.status !== 201 ) {
-                                termsNoCreate.push({
-                                    noCreate : term
-                                });
-                            }
-                        });
+                            console.log('lote nro: ', index);
+                            await Promise.all(requestLote);
+                        }
                     }
-                }
-                return;
+                }    
+                wait(4000);
+                return acc;
             }
-        }));        
-
+        },{});
         return res.json({
             res: 'Done!',
             attrIndex
