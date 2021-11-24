@@ -157,7 +157,6 @@ exports.createProductAtribute = async (req, res) => {
                     if ( intersectionDataTerms.length ) {
                         for (let index = 0; index < intersectionDataTerms.length; index += 5) {
                             const requestLote = intersectionDataTerms.slice(index, index + 5).map( async term => {
-                                console.log(term);
                                 const data = {
                                     name: term
                                 }
@@ -166,7 +165,6 @@ exports.createProductAtribute = async (req, res) => {
                             if ( index >= 5 ) {
                                 wait(3000);
                             }
-                            console.log('lote nro: ', index);
                             await Promise.all(requestLote);
                         }
                     }
