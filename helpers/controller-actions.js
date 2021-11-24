@@ -1,73 +1,36 @@
 const WooCommerce = require('../config-wc/wc');
 
-
-const getAllProducts = async skus => {
-
-    if ( skus.length ) {
-        const allPromises = skus.map(sku => {
-            const response = WooCommerce.get(`products/?sku=${sku}`);
-            return response;
-        });
-        if ( allPromises.length ) {
-            const resultPromises = await Promise.all(allPromises);
-            if ( resultPromises ) {
-                const productsWc = resultPromises.map(response => {
-                    if ( response.status === 200 && response.data.length ) {
-                        return response.data;
-                    }
-                })
-                return productsWc.reduce((acc, el) => acc.concat(el), []);
-            }
-        }
-    }
-    return [];
-    
-}
-
-const getAllProductsPromises = async skus => {
-
-  if ( skus.length ) {
-      const allPromises = skus.map(sku => {
-          const response =  WooCommerce.get(`products/?sku=${sku}`);
-          return response;
-      });
-      return allPromises;
-  }
-  return [];
-  
-}
-
-const getOnePromisesProduct = sku => {
+const getOnePromiseProduct = sku => {
     const response = WooCommerce.get(`products/?sku=${sku}`);
     return response;
 }
 
-const getDataPromisesForSlice = async array => {
+const getDataPromisesProductForSlice = async array => {
 
   if ( array.length ){
     const result = [];
     const arrayLength = array.length
     for (let index = 0; index <= arrayLength; index += 10) {
       const requestLote = array.slice(index, index + 10).map(item => {
-        return getOnePromisesProduct(item);
+        return getOnePromiseProduct(item);
       });
       if ( index >= 10 ) {
-        setTimeout(() => {
-          console.log('current index: ', index);
-        }, 4000)
+        wait(4000)
       };
       const resAllPromisesLote = await Promise.all(requestLote);
       result.push(resAllPromisesLote);
     }
-    return result.reduce((acc, el) => acc.concat(el), []);
+    return result.reduce((acc, el) => acc.concat(el), []).map((product) => {
+      if ( product.status === 200 && product.data.length ) {
+          return product.data;
+      }
+    });
   }
   return [];
 
 }
 
-const insertAllAttrs = async (data, dataIndex) => {
-
-    const allPromises = data.map(attr => {
+const getOnePromiseAttributes = attr => {
       const attribute = {
           name: attr,
           slug: `pa_${attr.toLowerCase()}`,
@@ -76,22 +39,34 @@ const insertAllAttrs = async (data, dataIndex) => {
           has_archives: true
       }
       return WooCommerce.post("products/attributes", attribute);
-    });
+}
 
-    if ( allPromises.length ) {
-      const resultPromises = await Promise.all(allPromises);
-      if ( resultPromises ) {
-        resultPromises.map(response => {
-            if ( response.status === 201 ) {
-              const { id, name } = response.data;
-              dataIndex[name] = id;
-            }
-        });
-        return dataIndex;
-      }
+const insertAllAttrs = async (data, dataIndex) => {
+
+  if ( data.length ) {
+    const result = [];
+    for (let index = 0; index <= data.length; index += 10) {
+      const requestLote = data.slice(index, index + 10).map(item => {
+          return getOnePromiseAttributes(item);
+      });
+      if ( index >= 10) {
+        wait(4000);
+      };
+      const resAllPromisesLote = await Promise.all(requestLote);
+      result.push(resAllPromisesLote);
     }
 
+    if ( result.length ) {
+      result.reduce((acc, el) => acc.concat(el), []).map(response => {
+          if ( response.status === 201 ) {
+            const { id, name } = response.data;
+            dataIndex[name] = id;
+          }
+      });
+      return dataIndex;
+    } 
     return dataIndex;
+  }
 }
 
 const prepareAllInsert = async (id, data) => {
@@ -111,6 +86,7 @@ const jsonAttr = (obj, sku, indexAllAttrsWc, indexSkuCsv) => Object.keys(obj).ma
       }
   }
 });
+
 
 const getAllAttributes = async () => {
 
@@ -208,7 +184,6 @@ const wait = ms => {
 }
 
 module.exports = {
-    getAllProducts,
     insertAllAttrs,
     prepareAllInsert,
     filterValues,
@@ -217,6 +192,6 @@ module.exports = {
     getAllAttributes,
     groupByProperties,
     jsonAttr,
-    getAllProductsPromises,
-    getDataPromisesForSlice
+    wait,
+    getDataPromisesProductForSlice
 }

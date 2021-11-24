@@ -12,8 +12,8 @@ const {
     getAllAttributes,
     groupByProperties,
     jsonAttr,
-    getAllProductsPromises,
-    getDataPromisesForSlice
+    wait,
+    getDataPromisesProductForSlice
 } = require('../helpers/controller-actions');
 
 exports.getAllAtributes = async (req, res) => {
@@ -40,7 +40,7 @@ exports.getProductBySku = async (req, res) => {
         const currentDir = path.join(__dirname, '../csv-skus/');
         const dataJson = await getJsonData(currentDir);
         const skus = dataJson.map(sku => sku.sku);
-        const resultData = await getDataPromisesForSlice(skus);
+        const resultData = await getDataPromisesProductForSlice(skus);
         const noSkus = []
         if ( resultData.length ) {
             const allData = resultData.map((product, pos) => {
@@ -138,16 +138,15 @@ exports.createProductAtribute = async (req, res) => {
         const intersectionDataAttributes = dataJson.filter(attr => !dataIndex[attr.atributo])
               .map(item => item.atributo)
               .filter((value, index, self) => self.indexOf(value) === index);
-
         let attrIndex;
-        if ( intersectionDataAttributes.length > 0 ) {
+        if ( intersectionDataAttributes.length ) {
             // Create all Attributes.
             attrIndex = await insertAllAttrs(intersectionDataAttributes, dataIndex);
         } else {
             attrIndex = dataIndex
         }    
         const indexDataCsvTerms = indexByItem( dataJson, 'atributo', 'valores' );
-        //Create Terms by Id Attribute.
+        // Create Terms by Id Attribute.
         const termsNoCreate = [];
         await Promise.all (Object.keys(attrIndex).map( async attr => {
             if ( indexDataCsvTerms[attr] ) {
@@ -156,7 +155,7 @@ exports.createProductAtribute = async (req, res) => {
                 if ( responseTermsAttr.status === 200 ){
                     const termsNames = responseTermsAttr.data.map(wc_term => (wc_term.name));
                     const intersectionDataTerms = termsCsv.filter(csv_term => !termsNames.includes(csv_term));
-                    if ( intersectionDataTerms ) {
+                    if ( intersectionDataTerms.length ) {
                         intersectionDataTerms.map( async term => {
                             const data = {
                                 name: term
@@ -175,7 +174,8 @@ exports.createProductAtribute = async (req, res) => {
         }));        
 
         return res.json({
-            res: 'Done!'
+            res: 'Done!',
+            attrIndex
         });
          
     } catch (error) {
@@ -202,25 +202,30 @@ exports.addAttributeInProduct = async (req, res) => {
         }
         const copyDataJson = [...dataJson];
         const allSkusCsv = filterValues(dataJson, 'sku');
-        const productsWc = await getAllProducts(allSkusCsv);
+        const productsWc = await getDataPromisesProductForSlice(allSkusCsv);
         const indexSkuCsv = groupByProperties(copyDataJson, ['sku', 'atributo', 'valores']);
         const allAttrsWc = await getAllAttributes();
         const indexAllAttrsWc = allAttrsWc.reduce((acc, it) => (acc[it.name] = it.id, acc), {});
-        const allPromisesInsert = [];
         if ( productsWc.length ) {
-            productsWc.forEach(product => {
-                if ( indexSkuCsv[product.sku] ){
-                    const attrs = jsonAttr(indexSkuCsv[product.sku], product.sku, indexAllAttrsWc, indexSkuCsv);
-                    const data = {
-                        attributes: attrs
-                    };
-                    allPromisesInsert.push(prepareAllInsert(product.id, data));
+            const productsPlane = productsWc.reduce((acc, el) => acc.concat(el), []);
+            for (let index = 0; index < productsPlane.length; index += 10) {
+                const requestLote = productsPlane.slice(index, index + 10).map(product => {
+                    if ( indexSkuCsv[product.sku] ){
+                        const attrs = jsonAttr(indexSkuCsv[product.sku], product.sku, indexAllAttrsWc, indexSkuCsv);
+                        const data = {
+                            attributes: attrs
+                        };
+                        return prepareAllInsert(product.id, data);
+                    }
+                });
+                if ( index >= 10 ) {
+                    wait(4000);
                 }
-            });
-            await Promise.all(allPromisesInsert);
+                await Promise.all(requestLote);
+            }
         }
         return res.json({
-            response: 'Done'
+            response: 'Done',
         });
         
     } catch (error) {
