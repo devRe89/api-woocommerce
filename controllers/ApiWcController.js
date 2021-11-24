@@ -147,7 +147,8 @@ exports.createProductAtribute = async (req, res) => {
         }    
         const indexDataCsvTerms = indexByItem( dataJson, 'atributo', 'valores' );
         // Create Terms by Id Attribute.
-        Object.keys(attrIndex).reduce(async (acc, el) => {
+        Object.keys(attrIndex).reduce(async (previousPromise, el) => {
+            await previousPromise;
             if ( indexDataCsvTerms[el] ) {
                 const termsCsv = indexDataCsvTerms[el];
                 const responseTermsAttr = await WooCommerce.get(`products/attributes/${attrIndex[el]}/terms`);
@@ -170,9 +171,9 @@ exports.createProductAtribute = async (req, res) => {
                     }
                 }    
                 wait(4000);
-                return acc;
+                return Promise.resolve();
             }
-        },{});
+        }, Promise.resolve());
         return res.json({
             res: 'Done!',
             attrIndex
