@@ -24,7 +24,11 @@ router.post('/add-all-attributes',
 
 router.post('/create-attributes',
     ApiWcController.createProductAtribute
-)
+);
+
+router.post('/update-products',
+    ApiWcController.updateProducts
+);
 
 module.exports = router;
 

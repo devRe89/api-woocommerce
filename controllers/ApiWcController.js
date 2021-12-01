@@ -13,7 +13,8 @@ const {
     groupByProperties,
     jsonAttr,
     wait,
-    getDataPromisesProductForSlice
+    getDataPromisesProductForSlice,
+    prepareUpdateProductsPromises
 } = require('../helpers/controller-actions');
 
 exports.getAllAtributes = async (req, res) => {
@@ -74,20 +75,15 @@ exports.createProductVariant = async (req, res) => {
 
     try {
         const data = {
-            attributes: [
+            meta_data: [
                 {
-                    id: 30,
-                    name: "Ancho",
-                    position: 0,
-                    visible: true,
-                    variation: false,
-                    options: [
-                        "30Cm",
-                    ]
+                    id: 3531643,
+                    key: "nombre_tecnico",
+                    value: "TOPGAL 600x11800x8MM GRIS METALICO"
                 }
             ],
         };
-        const response = await WooCommerce.put("products/101114", data);
+        const response = await WooCommerce.put("products/101916", data);
         res.json({
             res: response.data,
             status: response.status
@@ -237,5 +233,52 @@ exports.addAttributeInProduct = async (req, res) => {
         });
 
     }
+
+}
+
+exports.updateProducts = async (req, res) => {
+
+    try {
+
+        const currentDir = path.join(__dirname, '../csv-update-products/');
+        const dataJson = await getJsonData(currentDir);
+        if ( !dataJson.length ) {
+            return res.status(400).json({
+                msg: 'No Hay datos disponibles en el excel'
+            });
+        }
+        const allSkusCsv = filterValues(dataJson, 'sku');
+        const productsWc = await getDataPromisesProductForSlice(allSkusCsv);
+        const productsPlane = productsWc?.reduce((acc, el) => acc.concat(el), []);
+        const indexSkuCsv = dataJson.reduce((acc, it) => (acc[it.sku] = it, acc), {});
+
+        if ( productsPlane.length ) {
+            for (let index = 0; index < productsPlane.length; index += 10) {
+                const requestLote = productsPlane.slice(index, index + 10).map(product => {
+                    if ( indexSkuCsv[product.sku] ) {
+                        return prepareUpdateProductsPromises(indexSkuCsv[product.sku], product.id, product.meta_data);
+                    }
+                });
+                if ( index >= 10 ) {
+                    wait(4000);
+                }
+                await Promise.all(requestLote);
+            }
+        }
+        return res.json({
+            allSkusCsv,
+            indexSkuCsv,
+            productsPlane
+        });
+
+    } catch (error) {
+
+        console.log(error)
+        return res.status(500).json({
+            e: 'error'
+        });
+    
+    }
+
 
 }

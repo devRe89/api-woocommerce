@@ -98,6 +98,29 @@ const getAllAttributes = async () => {
 
 }
 
+const prepareUpdateProductsPromises = (jsonCsv, id, meta) => {
+
+  let id_meta_key = '';
+  meta.some(item => {
+    if ( item.key === 'nombre_tecnico' ) {
+      id_meta_key = item.id
+    }
+  });
+  const data = {
+    name: jsonCsv.name,
+    description: jsonCsv.description,
+    meta_data: [
+      {
+        id: id_meta_key,
+        key: 'nombre_tecnico',
+        value: jsonCsv.nombre_tecnico
+      }
+    ]
+  }
+  return WooCommerce.put(`products/${id}`, data);
+
+}
+
 const filterValues = (array, key) => {
 
   const result = array.map(item => item[key]).filter((value, index, self) => self.indexOf(value) === index);
@@ -193,5 +216,6 @@ module.exports = {
     groupByProperties,
     jsonAttr,
     wait,
-    getDataPromisesProductForSlice
+    getDataPromisesProductForSlice,
+    prepareUpdateProductsPromises
 }
