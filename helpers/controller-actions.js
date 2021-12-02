@@ -101,15 +101,14 @@ const getAllAttributes = async () => {
 const prepareUpdateProductsPromises = (jsonCsv, id, meta) => {
 
   let id_meta_key = '';
-  meta.some(item => {
-    if ( item.key === 'nombre_tecnico' ) {
-      id_meta_key = item.id
-    }
-  });
-  const data = {
-    name: jsonCsv.name,
-    description: jsonCsv.description,
-    meta_data: [
+  let data = {};
+  if ( jsonCsv.nombre_tecnico ) {
+    meta.some(item => {
+      if ( item.key === 'nombre_tecnico' ) {
+        id_meta_key = item.id
+      }
+    });
+    data.meta_data = [
       {
         id: id_meta_key,
         key: 'nombre_tecnico',
@@ -117,7 +116,18 @@ const prepareUpdateProductsPromises = (jsonCsv, id, meta) => {
       }
     ]
   }
-  return WooCommerce.put(`products/${id}`, data);
+  if ( jsonCsv.name ) {
+    data.name = jsonCsv.name;
+  }
+  if ( jsonCsv.description ) {
+    data.description = jsonCsv.description;
+  }
+
+  if ( Object.keys(data).length ) {
+    return WooCommerce.put(`products/${id}`, data);
+  }
+  
+  return;
 
 }
 

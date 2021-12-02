@@ -249,26 +249,28 @@ exports.updateProducts = async (req, res) => {
         }
         const allSkusCsv = filterValues(dataJson, 'sku');
         const productsWc = await getDataPromisesProductForSlice(allSkusCsv);
-        const productsPlane = productsWc?.reduce((acc, el) => acc.concat(el), []);
+        if ( !productsWc.length ) {
+            return res.status(400).json({
+                msg: 'No hay productos via Api'
+            });
+        }
+        const productsPlane = productsWc.reduce((acc, el) => acc.concat(el), []);
         const indexSkuCsv = dataJson.reduce((acc, it) => (acc[it.sku] = it, acc), {});
 
-        if ( productsPlane.length ) {
-            for (let index = 0; index < productsPlane.length; index += 10) {
-                const requestLote = productsPlane.slice(index, index + 10).map(product => {
-                    if ( indexSkuCsv[product.sku] ) {
-                        return prepareUpdateProductsPromises(indexSkuCsv[product.sku], product.id, product.meta_data);
-                    }
-                });
-                if ( index >= 10 ) {
-                    wait(4000);
+        for (let index = 0; index < productsPlane.length; index += 10) {
+            const requestLote = productsPlane.slice(index, index + 10).map(product => {
+                if ( indexSkuCsv[product.sku] ) {
+                    return prepareUpdateProductsPromises(indexSkuCsv[product.sku], product.id, product.meta_data);
                 }
-                await Promise.all(requestLote);
+            });
+            if ( index >= 10 ) {
+                wait(4000);
             }
+            await Promise.all(requestLote);
         }
+        
         return res.json({
-            allSkusCsv,
-            indexSkuCsv,
-            productsPlane
+            res: 'Done!'
         });
 
     } catch (error) {
